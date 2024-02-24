@@ -5,18 +5,25 @@ import numpy as np
 import time
 import dash_bootstrap_components as dbc
 
+NUM_QUESTIONS = 5 # Number of questions to ask - currently this is hard-coded below but could be made a user input if the callbacks' logic is changed to use list comprehensions in the params
+NUM_SPLASH_IMAGES = 4 # Number of splash images to choose from - should match the number of correctly named images in the assets folder
+STARTING_POINTS = 5 # Max points per question - each incorrect response deducts 1 point
 app = dash.Dash(
     external_stylesheets=[dbc.themes.BOOTSTRAP],
     meta_tags=[
         {"name": "viewport", "content": "width=device-width, initial-scale=1"},
     ],
-    title='Multiplication and Division Game',
+    title='Multiply and Divide and Conquer',
     suppress_callback_exceptions=True
 )
 
+# Photo by <a href="https://unsplash.com/@jrkorpa?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Jr Korpa</a> on <a href="https://unsplash.com/photos/pink-and-black-wallpaper-9XngoIpxcEo?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
+# Photo by <a href="https://unsplash.com/@lukechesser?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Luke Chesser</a> on <a href="https://unsplash.com/photos/blue-to-purple-gradient-eICUFSeirc0?utm_content=creditCopyText&utm_medium=referral&utm_source=unsplash">Unsplash</a>
+  
+
 # Layout of the app
 app.layout = html.Div([
-    html.H1("Multiplication and Division Game", style={'margin':'auto', 'text-align': 'center'}),
+    html.H1("Multiply and Divide and Conquer", style={'margin':'auto', 'text-align': 'center', 'color': 'white'}),
     
     dbc.Card(
         [
@@ -59,7 +66,12 @@ app.layout = html.Div([
     # Flashing image after correct answers
     html.Div(id='success-message', style={'text-align': 'center'}),
     html.Img(id='flash-image', style={'display': 'none'}),
-])
+],
+# style={'background-color': '#f2f2f2',}
+style = {'background-image': 'url("assets/bg.jpg")', 'height': '100%'}
+
+
+)
 
 
 @app.callback(
@@ -72,14 +84,13 @@ app.layout = html.Div([
     prevent_initial_call=False
 )
 def generate_questions(operation, min_num, max_num):
-    num_questions = 5
     questions = []
     correct_answers = []
     user_scores = []
-    questions.append(dbc.ListGroupItem(html.Label(f"Answer the following {num_questions} questions:")))
+    questions.append(dbc.ListGroupItem(html.Label(f"Answer the following {NUM_QUESTIONS} questions:")))
     questions.append(dbc.ListGroupItem(html.Label(f"Points", style={'float': 'right'})))
     
-    for i in range(num_questions):
+    for i in range(NUM_QUESTIONS):
         if operation == 'multiply':
             num1, num2 = np.random.randint(min_num, max_num + 1, size=2)
             
@@ -88,7 +99,7 @@ def generate_questions(operation, min_num, max_num):
                     dcc.Input(id=f'input-{i}', type='number', debounce=True, min=0, max=max(100, max_num*max_num+max_num), step=1, style={'width': '100px', 'float': 'left'}),
                     html.Button(f'Check', id=f'submit-button-{i}', n_clicks=0, style={'margin-left': '25px', 'float': 'left'}),
                     html.Label(id=f'feedback-{i}', children=''),
-                    html.Label(id=f'points-{i}', children='1', style={'float': 'right'}),
+                    html.Label(id=f'points-{i}', children='0', style={'float': 'right'}),
                     
                 ], style={'margin-bottom': '10px'},
             )
@@ -101,7 +112,7 @@ def generate_questions(operation, min_num, max_num):
                     dcc.Input(id=f'input-{i}', type='number', debounce=True, min=0, max=max(100, max_num*max_num+max_num), step=1, style={'width': '100px', 'float': 'left'}),
                     html.Button(f'Check', id=f'submit-button-{i}', n_clicks=0, style={'margin-left': '25px', 'float': 'left'}),
                     html.Label(id=f'feedback-{i}', children=''),
-                    html.Label(id=f'points-{i}', children='1', style={'float': 'right'}),
+                    html.Label(id=f'points-{i}', children='0', style={'float': 'right'}),
                     
                 ], style={'margin-bottom': '10px'},
             )
@@ -110,7 +121,7 @@ def generate_questions(operation, min_num, max_num):
 
         questions.append(question)
         correct_answers.append(answer)
-        user_scores.append(0)
+        user_scores.append(STARTING_POINTS)
 
      
     return questions, correct_answers, user_scores
@@ -124,6 +135,11 @@ def generate_questions(operation, min_num, max_num):
      Output('flash-image', 'src'),
      Output('flash-image', 'style'),
      Output('success-message', 'children'),
+     Output('points-0', 'children'),
+     Output('points-1', 'children'),
+     Output('points-2', 'children'),
+     Output('points-3', 'children'),
+     Output('points-4', 'children')
     ],
     [Input('submit-button-0', 'n_clicks'),
      Input('submit-button-1', 'n_clicks'),
@@ -144,12 +160,15 @@ def generate_questions(operation, min_num, max_num):
 def check_answer(*args):
 
     button_clicked = ctx.triggered_id
-    print(button_clicked)
-    num_questions = 5
+    # print(button_clicked)
     num_correct = 0
+    total_points = 0 # sum of points
 
     output = []
-    for i in range(num_questions):
+    points_list = [] # also output, but at the end, so we'll extend the list after the loop
+
+    
+    for i in range(NUM_QUESTIONS):
         # if button_clicked == f'submit-button-{i}':
             user_answer = args[i+5]
             correct_answer = args[10][i]
@@ -157,6 +176,9 @@ def check_answer(*args):
                
                 output.append(html.Div("Correct!", style={'color': 'green'}))
                 num_correct += 1
+                points = max(STARTING_POINTS - args[i] + 1, 1)
+                total_points += points
+                points_list.append(points)
 
             else:
                 if user_answer is None:
@@ -168,15 +190,21 @@ def check_answer(*args):
                     output.append(html.Div("Incorrect! Answer is too low.", style={'color': 'red'}))
                 else:
                     output.append(html.Div("Incorrect! Answer is too high.", style={'color': 'red'}))
+                
+                points_list.append(0)
 
-    if num_correct < num_questions:
+    if num_correct < NUM_QUESTIONS:
         output.append(None)
         output.append({'display': 'none'})
         output.append(None)
     else:
-        output.append('assets/success_splash_0.jpg')
+        splash_image_id = np.random.randint(0, NUM_SPLASH_IMAGES)
+        output.append(f'assets/success_splash_{splash_image_id}.jpg')
         output.append({'display': 'block'})
-        output.append(html.Div(f"Congratulations {args[11]}! You got all the answers correct!", style={'color': 'green'}))
+        output.append(html.Div(f"Congratulations {args[11]}! You got all the answers correct and scored {total_points} points!", style={'color': 'green', 'font-size': '40px'}))
+
+    # my_list.extend(another_list)
+    output.extend(points_list)
 
     return output
 
