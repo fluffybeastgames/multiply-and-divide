@@ -27,6 +27,8 @@ app.layout = html.Div([
     
     dbc.Card(
         [
+            
+            html.Button('score-board', id='view-score-board-button', n_clicks=0, style={'margin': 'auto', 'display': 'inline-block'}),    
             html.Label('Your Name:'),
             dcc.Input(id='player-name', type='text', debounce=True, style={'width':'50%', 'margin':'auto'}),
 
@@ -42,23 +44,35 @@ app.layout = html.Div([
             ),
             # Dropdowns for selecting minimum and maximum numbers
             html.Label("Select minimum and maximum numbers: "),
-            dcc.Input(id=f'min-number', type='number', debounce=True, min=0, max=100, step=1, value=1, style={'width':'25%', 'margin':'auto'}), 
+            dcc.Input(id=f'min-number', type='number', debounce=True, min=1, max=100, step=1, value=1, style={'width':'25%', 'margin':'auto'}), 
             html.Label(" to ", style={'width':'25%', 'margin':'auto'}),
-            dcc.Input(id=f'max-number', type='number', debounce=True, min=0, max=100, step=1, value=10, style={'width':'25%', 'margin':'auto'}),
+            dcc.Input(id=f'max-number', type='number', debounce=True, min=1, max=100, step=1, value=10, style={'width':'25%', 'margin':'auto'}),
+
+            html.Button('New Game', id='new-game-button', n_clicks=0, style={'margin-top': '20px', 'margin':'auto', 'display': 'block'}),
         ],
+        id='card_input',
         style={'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}
     ),
     dbc.Card(
         [
+            html.Button('Back', id='game-back-button', n_clicks=0, style={'margin': 'auto', 'display': 'inline-block'}),
             # Display area for questions and user input
             dbc.ListGroup(id='question-display'),
             
             # Feedback area for correct/incorrect answers
             html.Div(id='feedback'),
         ],
+        id='card_game_board',
         style={'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'}
     ),
-    
+    dbc.Card(
+        [
+            html.Label('score-board'),
+            html.Button('Home', id='score-board-back-button', n_clicks=0, style={'margin': 'auto', 'display': 'inline-block'}),
+        ],
+        id='card_score-board',
+        style={'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'}
+    ),
     # Store the correct answers and user scores
     dcc.Store(id='correct-answers'),
     dcc.Store(id='user-scores'),
@@ -78,16 +92,19 @@ style = {'background-image': 'url("assets/bg.jpg")', 'height': '100%'}
     [Output('question-display', 'children'),
      Output('correct-answers', 'data'),
      Output('user-scores', 'data')],
-    [Input('operation-selector', 'value'),
-     Input('min-number', 'value'),
-     Input('max-number', 'value')],
+    Input('new-game-button', 'n_clicks'),
+    [State('operation-selector', 'value'),
+     State('min-number', 'value'),
+     State('max-number', 'value'),
+     State('player-name', 'value')
+    ],
     prevent_initial_call=False
 )
-def generate_questions(operation, min_num, max_num):
+def generate_questions(n_clicks, operation, min_num, max_num, player_name):
     questions = []
     correct_answers = []
     user_scores = []
-    questions.append(dbc.ListGroupItem(html.Label(f"Answer the following {NUM_QUESTIONS} questions:")))
+    questions.append(dbc.ListGroupItem(html.Label(f"OK {player_name}! Answer the following {NUM_QUESTIONS} questions:")))
     questions.append(dbc.ListGroupItem(html.Label(f"Points", style={'float': 'right'})))
     
     for i in range(NUM_QUESTIONS):
@@ -126,6 +143,42 @@ def generate_questions(operation, min_num, max_num):
      
     return questions, correct_answers, user_scores
 
+
+@app.callback(
+    [
+        Output('card_input', 'style'),
+        Output('card_game_board', 'style'),
+        Output('card_score-board', 'style')
+        # Output('card_beast', 'style')
+    ],
+    [
+        Input('new-game-button', 'n_clicks'),
+        Input('game-back-button', 'n_clicks'),
+        Input('score-board-back-button', 'n_clicks'),
+        Input('view-score-board-button', 'n_clicks')
+    ],
+    prevent_initial_call=False
+)
+def toggle_visibility(n_clicks_ng, n_clicks_gb, n_clicks_sb, n_clicks_vs):
+    print(ctx.triggered_id)
+    if ctx.triggered_id == 'game-back-button':
+        return {'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}, {'display': 'none'},  {'display': 'none'}
+    elif ctx.triggered_id == 'new-game-button':
+        return {'display': 'none'}, {'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'},  {'display': 'none'}
+    elif ctx.triggered_id == 'score-board-back-button':
+        return {'display': 'none'}, {'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'},  {'display': 'none'}
+    elif ctx.triggered_id == 'view-score-board-button':
+        return {'display': 'none'},  {'display': 'none'}, {'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'}
+    
+
+
+    else:
+        return {'width': '33%', 'margin':'auto', 'margin-bottom': '20px', 'text-align': 'center'}, {'display': 'none'}, {'display': 'none'}
+    
+    # style={'width': '33%', 'margin':'auto', 'margin-bottom': '20px', 'text-align': 'left'}
+    #     style={'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}
+    # ),
+
 @app.callback(
     [Output('feedback-0', 'children'),
      Output('feedback-1', 'children'),
@@ -153,7 +206,9 @@ def generate_questions(operation, min_num, max_num):
      State('input-3', 'value'),
      State('input-4', 'value'),
      State('correct-answers', 'data'),
-     State('player-name', 'value')],
+     State('player-name', 'value'),
+     State('max-number', 'value')
+    ],
     prevent_initial_call=True
     
 )
@@ -176,7 +231,9 @@ def check_answer(*args):
                
                 output.append(html.Div("Correct!", style={'color': 'green'}))
                 num_correct += 1
-                points = max(STARTING_POINTS - args[i] + 1, 1)
+
+                #args[12] is the state of the max number
+                points = max(STARTING_POINTS + int(args[12]/5) - args[i] + 1, 1)
                 total_points += points
                 points_list.append(points)
 
@@ -201,7 +258,7 @@ def check_answer(*args):
         splash_image_id = np.random.randint(0, NUM_SPLASH_IMAGES)
         output.append(f'assets/success_splash_{splash_image_id}.jpg')
         output.append({'display': 'block'})
-        output.append(html.Div(f"Congratulations {args[11]}! You got all the answers correct and scored {total_points} points!", style={'color': 'green', 'font-size': '40px'}))
+        output.append(html.Div(f"Congratulations {args[11]}! You got all the answers correct and scored {total_points} points!", style={'color': 'white', 'font-size': '40px'}))
 
     # my_list.extend(another_list)
     output.extend(points_list)
