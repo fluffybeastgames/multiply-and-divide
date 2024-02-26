@@ -28,7 +28,6 @@ app.layout = html.Div([
     dbc.Card(
         [
             
-            html.Button('score-board', id='view-score-board-button', n_clicks=0, style={'margin': 'auto', 'display': 'inline-block'}),    
             html.Label('Your Name:'),
             dcc.Input(id='player-name', type='text', debounce=True, style={'width':'50%', 'margin':'auto'}),
 
@@ -36,7 +35,9 @@ app.layout = html.Div([
                 id='operation-selector',
                 options=[
                     {'label': 'Multiplication', 'value': 'multiply'},
-                    {'label': 'Division', 'value': 'divide'}
+                    {'label': 'Division', 'value': 'divide'},
+                    {'label': 'Addition', 'value': 'add'},
+                    {'label': 'Subtraction', 'value': 'subtract'}                    
                 ],
                 value='multiply',
                 labelStyle={'display': 'block'},
@@ -48,7 +49,9 @@ app.layout = html.Div([
             html.Label(" to ", style={'width':'25%', 'margin':'auto'}),
             dcc.Input(id=f'max-number', type='number', debounce=True, min=1, max=100, step=1, value=10, style={'width':'25%', 'margin':'auto'}),
 
-            html.Button('New Game', id='new-game-button', n_clicks=0, style={'margin-top': '20px', 'margin':'auto', 'display': 'block'}),
+            html.Button('New Game', id='new-game-button', n_clicks=0, style={'margin-top': '20px', 'margin':'auto', 'display': 'block', 'height': '50px', 'width': '100px'}),
+            html.Button('Score Board', id='view-score-board-button', n_clicks=0, style={'margin': 'auto', 'display': 'inline-block'}),    
+            
         ],
         id='card_input',
         style={'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}
@@ -73,16 +76,22 @@ app.layout = html.Div([
         id='card_score-board',
         style={'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'}
     ),
+    dbc.Card(
+        [   # Flashing image after correct answers
+            html.Div(id='success-message', style={'text-align': 'center'}),
+            html.Img(id='flash-image', style={'display': 'none'}),
+        ],
+        id='card_beast',
+        style={'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}
+    ),
+
     # Store the correct answers and user scores
     dcc.Store(id='correct-answers'),
     dcc.Store(id='user-scores'),
 
-    # Flashing image after correct answers
-    html.Div(id='success-message', style={'text-align': 'center'}),
-    html.Img(id='flash-image', style={'display': 'none'}),
 ],
 # style={'background-color': '#f2f2f2',}
-style = {'background-image': 'url("assets/bg.jpg")', 'height': '100%'}
+style = {'background-image': 'url("assets/bg.jpg")', 'height': '100vh'}
 
 
 )
@@ -122,7 +131,7 @@ def generate_questions(n_clicks, operation, min_num, max_num, player_name):
             )
 
             answer = num1 * num2
-        else:  # operation is 'divide'
+        elif operation == 'divide':
             num1, num2 = np.random.randint(min_num, max_num + 1, size=2)
             question = dbc.ListGroupItem(
                 [   html.Label(f"{num1 * num2} / {num1} = ", style={'width':'100px', 'margin-left': '50px', 'float': 'left'}),
@@ -136,6 +145,36 @@ def generate_questions(n_clicks, operation, min_num, max_num, player_name):
 
             answer = num2
 
+        elif operation == 'add':
+            num1, num2 = np.random.randint(min_num, max_num + 1, size=2)
+            question = dbc.ListGroupItem(
+                [   html.Label(f"{num1} + {num2} = ", style={'width':'100px', 'margin-left': '50px', 'float': 'left'}),
+                    dcc.Input(id=f'input-{i}', type='number', debounce=True, min=0, max=max(max_num*3, 100), step=1, style={'width': '100px', 'float': 'left'}),
+                    html.Button(f'Check', id=f'submit-button-{i}', n_clicks=0, style={'margin-left': '25px', 'float': 'left'}),
+                    html.Label(id=f'feedback-{i}', children=''),
+                    html.Label(id=f'points-{i}', children='0', style={'float': 'right'}),
+                    
+                ], style={'margin-bottom': '10px'},
+            )
+
+            answer = num1 + num2
+        
+        elif operation == 'subtract':
+            num1, num2 = np.random.randint(min_num, max_num + 1, size=2)
+            question = dbc.ListGroupItem(
+                [   html.Label(f"{num1 + num2} - {num2} = ", style={'width':'100px', 'margin-left': '50px', 'float': 'left'}),
+                    dcc.Input(id=f'input-{i}', type='number', debounce=True, min=0, max=max(max_num*3, 100), step=1, style={'width': '100px', 'float': 'left'}),
+                    html.Button(f'Check', id=f'submit-button-{i}', n_clicks=0, style={'margin-left': '25px', 'float': 'left'}),
+                    html.Label(id=f'feedback-{i}', children=''),
+                    html.Label(id=f'points-{i}', children='0', style={'float': 'right'}),
+                    
+                ], style={'margin-bottom': '10px'},
+            )
+
+            answer = num1
+
+
+
         questions.append(question)
         correct_answers.append(answer)
         user_scores.append(STARTING_POINTS)
@@ -148,8 +187,8 @@ def generate_questions(n_clicks, operation, min_num, max_num, player_name):
     [
         Output('card_input', 'style'),
         Output('card_game_board', 'style'),
-        Output('card_score-board', 'style')
-        # Output('card_beast', 'style')
+        Output('card_score-board', 'style'),
+        Output('card_beast', 'style')
     ],
     [
         Input('new-game-button', 'n_clicks'),
@@ -160,20 +199,22 @@ def generate_questions(n_clicks, operation, min_num, max_num, player_name):
     prevent_initial_call=False
 )
 def toggle_visibility(n_clicks_ng, n_clicks_gb, n_clicks_sb, n_clicks_vs):
+
+    card_style = {'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}
+    none_style = {'display': 'none'}
+
     print(ctx.triggered_id)
     if ctx.triggered_id == 'game-back-button':
-        return {'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}, {'display': 'none'},  {'display': 'none'}
+        return card_style, none_style, none_style, none_style
     elif ctx.triggered_id == 'new-game-button':
-        return {'display': 'none'}, {'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'},  {'display': 'none'}
+        return none_style, card_style, none_style, card_style
     elif ctx.triggered_id == 'score-board-back-button':
-        return {'display': 'none'}, {'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'},  {'display': 'none'}
+        return card_style, none_style, none_style, none_style
     elif ctx.triggered_id == 'view-score-board-button':
-        return {'display': 'none'},  {'display': 'none'}, {'width': '33%', 'margin-left':'20px', 'margin-top': '20px', 'margin':'auto', 'text-align': 'center'}
+        return none_style, none_style, card_style, none_style
     
-
-
     else:
-        return {'width': '33%', 'margin':'auto', 'margin-bottom': '20px', 'text-align': 'center'}, {'display': 'none'}, {'display': 'none'}
+        return card_style, none_style, none_style, none_style
     
     # style={'width': '33%', 'margin':'auto', 'margin-bottom': '20px', 'text-align': 'left'}
     #     style={'width': '33%', 'margin-top': '20px', 'margin':'auto','text-align': 'center'}
@@ -258,7 +299,7 @@ def check_answer(*args):
         splash_image_id = np.random.randint(0, NUM_SPLASH_IMAGES)
         output.append(f'assets/success_splash_{splash_image_id}.jpg')
         output.append({'display': 'block'})
-        output.append(html.Div(f"Congratulations {args[11]}! You got all the answers correct and scored {total_points} points!", style={'color': 'white', 'font-size': '40px'}))
+        output.append(html.Div(f"Congratulations {args[11]}! You got all the answers correct and scored {total_points} points!", style={'color': 'green', 'font-size': '40px'}))
 
     # my_list.extend(another_list)
     output.extend(points_list)
